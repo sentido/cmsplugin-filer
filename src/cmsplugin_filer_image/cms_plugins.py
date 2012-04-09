@@ -16,9 +16,9 @@ class FilerImagePlugin(CMSPluginBase):
     admin_preview = False
     fieldsets = (
         (None, {
-            'fields': ('caption', ('image', 'image_url',), 'alt_text',)
+            'fields': ('caption_text', ('image', 'image_url',), 'alt_text',)
         }),
-        (_('image resizing options'), {
+        (_('Image resizing options'), {
             'fields': ('use_autoscale', 'thumbnail_option',)
         }),
         (None, {
@@ -28,9 +28,9 @@ class FilerImagePlugin(CMSPluginBase):
         (None, {
             'fields': ('alignment',)
         }),
-        ('More', {
+        (_('More'), {
             'classes': ('collapse',),
-            'fields': (('free_link', 'page_link',), 'description',)
+            'fields': (('free_link', 'page_link', 'file_link', 'original_link'), 'description',)
         }),        
         
     )
@@ -43,6 +43,7 @@ class FilerImagePlugin(CMSPluginBase):
         crop, upscale = False, False
         subject_location = False
         placeholder_width = context.get('width', None)
+        placeholder_height = context.get('height', None)
         if instance.thumbnail_option:
             # thumbnail option overrides everything else
             if instance.thumbnail_option.width:
@@ -57,7 +58,9 @@ class FilerImagePlugin(CMSPluginBase):
                 width = int(placeholder_width)
             elif instance.width:
                 width = instance.width
-            if instance.height:
+            if instance.use_autoscale and placeholder_height:
+                height = int(placeholder_height)
+            elif instance.height:
                 height = instance.height
             crop = instance.crop
             upscale = instance.upscale
@@ -98,10 +101,13 @@ class FilerImagePlugin(CMSPluginBase):
     
     def icon_src(self, instance):
         if instance.image:
-            # Fake the context with a reasonable width value because it is not 
-            # available at this stage
-            thumbnail = self.get_thumbnail({'width':200}, instance)
-            return thumbnail.url
+            if getattr(settings, 'FILER_IMAGE_USE_ICON', False) and '32' in instance.image.icons:
+                return instance.image.icons['32']
+            else:
+                # Fake the context with a reasonable width value because it is not 
+                # available at this stage
+                thumbnail = self.get_thumbnail({'width':200}, instance)
+                return thumbnail.url
         else:
             return os.path.normpath(u"%s/icons/missingfile_%sx%s.png" % (FILER_STATICMEDIA_PREFIX, 32, 32,))
 plugin_pool.register_plugin(FilerImagePlugin)
